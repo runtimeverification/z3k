@@ -11,8 +11,8 @@ message(STATUS "Z3_FOUND: ${Z3_FOUND}")
 message(STATUS "Found Z3 ${Z3_VERSION_STRING}")
 message(STATUS "Z3_DIR: ${Z3_DIR}")
 
-add_executable(k-inference
+add_executable(kompile-inference
 	inference.cpp)
 
-target_include_directories(k-inference PRIVATE ${Z3_CXX_INCLUDE_DIRS})
-target_link_libraries(k-inference PRIVATE ${Z3_LIBRARIES})
+target_include_directories(kompile-inference PRIVATE ${Z3_CXX_INCLUDE_DIRS})
+target_link_libraries(kompile-inference PRIVATE ${Z3_LIBRARIES})
