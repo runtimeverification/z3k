@@ -28,6 +28,9 @@ struct UserPropagate {
   void setAssertions(Z3_ast_vector assertions) {
     this->assertions = assertions;
   }
+
+  void reset() { Z3_ast_vector_resize(ctx, consequences, 0); }
+
   void init(
       std::vector<Z3_func_decl> sorts, std::vector<Z3_func_decl> variables,
       std::vector<Z3_func_decl> params,
@@ -347,17 +350,29 @@ int main(int argc, char **argv) {
   propagate->setAssertions(assertions);
 
   Z3_lbool result = Z3_solver_check(ctx, solver);
-  std::cout << result << std::endl;
-  if (result == Z3_L_TRUE) {
+
+  while (result == Z3_L_TRUE) {
+    std::cout << "sat" << std::endl;
     Z3_model model = Z3_solver_get_model(ctx, solver);
     Z3_model_inc_ref(ctx, model);
+
+    std::vector<Z3_ast> distinct;
     for (Z3_func_decl variable : variables) {
       Z3_ast value = Z3_model_get_const_interp(ctx, model, variable);
       Z3_symbol name = Z3_get_decl_name(ctx, variable);
       std::string s = Z3_get_symbol_string(ctx, name);
-      std::cout << s << " -> " << Z3_ast_to_string(ctx, value) << std::endl;
+      std::cout << "((|" << s << "| " << Z3_ast_to_string(ctx, value) << "))"
+                << std::endl;
+      distinct.push_back(Z3_mk_not(
+          ctx, leqSortSyntax(propagate, Z3_mk_app(ctx, variable, 0, nullptr),
+                             value)));
     }
+    Z3_solver_assert(ctx, solver, Z3_mk_or(ctx, distinct.size(), &distinct[0]));
+    propagate->reset();
+
+    result = Z3_solver_check(ctx, solver);
   }
+  std::cout << "unsat" << std::endl;
 
   return 0;
 }
