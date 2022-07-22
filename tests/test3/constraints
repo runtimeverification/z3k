@@ -1,0 +1,15 @@
+(define-fun |constraint3_SortInt| () Bool (and true (<=Sort |VarA| |SortInt|) ))
+(define-fun |constraint5_SortInt| () Bool (and true (<=Sort |VarB| |SortInt|) ))
+(define-fun |constraint2_(Sol_FreshVarSort_6_8_6_19_#KRewrite s)| () Bool (and true (<=Sort |SortExp| |FreshVarSort_6_8_6_19_#KRewrite|) |constraint3_SortInt| |constraint5_SortInt| ))
+(define-fun |constraint7_(Sol_FreshVarSort_6_8_6_19_#KRewrite s)| () Bool (and true (<=Sort |SortK| |FreshVarSort_6_8_6_19_#KRewrite|) ))
+(define-fun |constraint1_Sort#RuleBody| () Bool (and true (= |FreshVarSort_6_8_6_19_#KRewrite| |SortK|) |constraint2_(Sol_FreshVarSort_6_8_6_19_#KRewrite s)| |constraint7_(Sol_FreshVarSort_6_8_6_19_#KRewrite s)| ))
+(define-fun |constraint0_Sort#RuleContent| () Bool (and true |constraint1_Sort#RuleBody| ))
+(define-fun |constraint3_SortBool| () Bool (and true (<=Sort |VarA| |SortBool|) ))
+(define-fun |constraint5_SortBool| () Bool (and true (<=Sort |VarB| |SortBool|) ))
+(define-fun |constraint10_(Sol_FreshVarSort_6_8_6_19_#KRewrite s)| () Bool (and true (<=Sort |SortExp| |FreshVarSort_6_8_6_19_#KRewrite|) |constraint3_SortBool| |constraint5_SortBool| ))
+(define-fun |constraint9_Sort#RuleBody| () Bool (and true (= |FreshVarSort_6_8_6_19_#KRewrite| |SortK|) |constraint10_(Sol_FreshVarSort_6_8_6_19_#KRewrite s)| |constraint7_(Sol_FreshVarSort_6_8_6_19_#KRewrite s)| ))
+(define-fun |constraint8_Sort#RuleContent| () Bool (and true |constraint9_Sort#RuleBody| ))
+(define-fun amb0 () Bool (or |constraint0_Sort#RuleContent| |constraint8_Sort#RuleContent| ))
+
+(assert amb0)
+
