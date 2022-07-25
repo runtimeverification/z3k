@@ -367,6 +367,14 @@ int main(int argc, char **argv) {
           ctx, leqSortSyntax(propagate, Z3_mk_app(ctx, variable, 0, nullptr),
                              value)));
     }
+    for (Z3_func_decl variable : params) {
+      Z3_ast value = Z3_model_get_const_interp(ctx, model, variable);
+      Z3_symbol name = Z3_get_decl_name(ctx, variable);
+      std::string s = Z3_get_symbol_string(ctx, name);
+      std::cout << "((|" << s << "| " << Z3_ast_to_string(ctx, value) << "))"
+                << std::endl;
+    }
+
     Z3_solver_assert(ctx, solver, Z3_mk_or(ctx, distinct.size(), &distinct[0]));
     propagate->reset();
 
