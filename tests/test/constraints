@@ -104,4 +104,4 @@
 (define-fun |constraint0_Sort#RuleContent| ((s Solution)) Bool (and true (|constraint1_Sort#RuleBody| s) ))
 
 (assert (|constraint0_Sort#RuleContent| theSolution))
-(assert (not (exists ((s SolutionVariables) (s1 Sort) (s2 Sort)) (and (lt theSolution (Sol s s1 s2)) (|constraint0_Sort#RuleContent| (Sol s s1 s2)) (distinct s1 |SortKLabel|) (distinct s2 |SortKLabel|) ))))
+;(assert (not (exists ((s SolutionVariables) (s1 Sort) (s2 Sort)) (and (lt theSolution (Sol s s1 s2)) (|constraint0_Sort#RuleContent| (Sol s s1 s2)) (distinct s1 |SortKLabel|) (distinct s2 |SortKLabel|) ))))

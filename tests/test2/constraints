@@ -371,6 +371,6 @@
 (define-fun |constraint0_Sort#RuleContent| ((s Solution)) Bool (and true (|constraint1_Sort#RuleBody| s) (|constraint170_SortBool| s) ))
 
 (assert (|constraint0_Sort#RuleContent| theSolution))
-(assert (not (exists ((s SolutionVariables) (s1 Sort) (s2 Sort) (s3 Sort) (s4 Sort) (s5 Sort) (s6 Sort)) (and (lt theSolution (Sol s s1 s2 s3 s4 s5 s6)) (|constraint0_Sort#RuleContent| (Sol s s1 s2 s3 s4 s5 s6)) (distinct s1 |SortKLabel|) (distinct s2 |SortKLabel|) (distinct s3 |SortKLabel|) (distinct s4 |SortKLabel|) (distinct s5 |SortKLabel|) (distinct s6 |SortKLabel|) ))))
+;(assert (not (exists ((s SolutionVariables) (s1 Sort) (s2 Sort) (s3 Sort) (s4 Sort) (s5 Sort) (s6 Sort)) (and (lt theSolution (Sol s s1 s2 s3 s4 s5 s6)) (|constraint0_Sort#RuleContent| (Sol s s1 s2 s3 s4 s5 s6)) (distinct s1 |SortKLabel|) (distinct s2 |SortKLabel|) (distinct s3 |SortKLabel|) (distinct s4 |SortKLabel|) (distinct s5 |SortKLabel|) (distinct s6 |SortKLabel|) ))))
 ;(assert (not (exists ((s1 Sort) (s2 Sort) (s3 Sort) (s4 Sort) (s5 Sort) (s6 Sort) (s7 Sort) (s8 Sort) (s9 Sort) (s10 Sort) (s11 Sort) (s12 Sort) (s13 Sort) (s14 Sort) (s15 Sort) (s16 Sort) (s17 Sort)) (and (lt theSolution (Sol (SolVars s7 s8 s9 s10 s11 s12 s13 s14 s15 s16 s17) s1 s2 s3 s4 s5 s6)) (|constraint0_Sort#RuleContent| (Sol (SolVars s7 s8 s9 s10 s11 s12 s13 s14 s15 s16 s17) s1 s2 s3 s4 s5 s6)) (distinct s1 |SortKLabel|) (distinct s2 |SortKLabel|) (distinct s3 |SortKLabel|) (distinct s4 |SortKLabel|) (distinct s5 |SortKLabel|) (distinct s6 |SortKLabel|) ))))
 
