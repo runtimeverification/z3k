@@ -37,27 +37,35 @@ class Node {
   }
 };
 
+Z3_context global_ctx;
+
 bool operator==(const Node &lhs, const Node &rhs) { return lhs.id == rhs.id; }
 
 bool operator!=(const Node &lhs, const Node &rhs) { return lhs.id != rhs.id; }
 
 class UnionFind {
   Z3_context ctx;
-  std::map<Z3_ast, Node *> nodes;
+  std::vector<Node *> nodes;
   std::vector<std::function<void(void)>> *trail;
 
  public:
   UnionFind(Z3_context ctx, std::vector<std::function<void(void)>> *trail)
-      : ctx(ctx), nodes(std::map<Z3_ast, Node *>()), trail(trail) {}
+      : ctx(ctx), trail(trail) {}
 
   Node *node(Z3_ast a) {
-    Node *n = nodes[a];
-    if (n) {
-      return n;
+    unsigned id = Z3_get_ast_id(ctx, a);
+    Node *n;
+    if (id < nodes.size()) {
+      n = nodes[id];
+      if (n) {
+        return n;
+      }
+    } else {
+      nodes.resize(id + 1);
     }
     n = new Node(ctx, a);
-    nodes[a] = n;
-    trail->push_back([this, a]() { this->nodes.erase(a); });
+    nodes[id] = n;
+    trail->push_back([this, id]() { this->nodes[id] = nullptr; });
     return n;
   }
 
@@ -122,8 +130,10 @@ class UnionFind {
   Z3_ast root_term(Z3_ast a) { return find(node(a))->term; }
 
   void print() {
-    for (auto entry : nodes) {
-      entry.second->print();
+    for (auto node : nodes) {
+      if (node) {
+        node->print();
+      }
     }
   }
 };
@@ -307,6 +317,7 @@ struct UserPropagate {
     Z3_ast b = Z3_get_app_arg(ctx, app, 1);
     Z3_ast va = uf.get_value(a);
     Z3_ast vb = uf.get_value(b);
+    Z3_lbool value = Z3_get_bool_value(ctx, v);
     // if (va && a != va && isFinal) {
     // std::cout << "assigned: " << Z3_ast_to_string(ctx, a) << " "
     //          << Z3_ast_to_string(ctx, va) << std::endl;
@@ -321,9 +332,7 @@ struct UserPropagate {
       //            << Z3_ast_to_string(ctx, v) << std::endl;
       // abort();
       //}
-      unsigned aid = Z3_get_ast_id(ctx, a);
-      unsigned bid = Z3_get_ast_id(ctx, b);
-      Z3_lbool value = Z3_get_bool_value(ctx, v);
+      unsigned aid, bid;
       Z3_ast lhs[2], rhs[2];
       unsigned neqs = 0;
       if (va) {
@@ -338,6 +347,8 @@ struct UserPropagate {
                                           Z3_mk_false(ctx));
           return true;
         }
+      } else {
+        aid = Z3_get_ast_id(ctx, a);
       }
       if (vb) {
         bid = Z3_get_ast_id(ctx, vb);
@@ -350,6 +361,8 @@ struct UserPropagate {
           Z3_solver_propagate_consequence(ctx, cb, 1, &x, 1, &b, &vb,
                                           Z3_mk_eq(ctx, a, vb));
         }
+      } else {
+        bid = Z3_get_ast_id(ctx, b);
       }
       if (value == Z3_L_TRUE) {
         if (auto fixed = fixedFalse[idToIdx[aid]][idToIdx[bid]]) {
@@ -379,7 +392,7 @@ struct UserPropagate {
     }
     unsigned aid = Z3_get_ast_id(ctx, va);
     unsigned bid = Z3_get_ast_id(ctx, vb);
-    if (Z3_get_bool_value(ctx, v) == Z3_L_TRUE) {
+    if (value == Z3_L_TRUE) {
       if (!table[idToIdx[aid]][idToIdx[bid]]) {
         Z3_ast lhs[2], rhs[2];
         lhs[0] = a;
@@ -393,7 +406,7 @@ struct UserPropagate {
       } else {
         return false;
       }
-    } else if (Z3_get_bool_value(ctx, v) == Z3_L_FALSE) {
+    } else if (value == Z3_L_FALSE) {
       if (table[idToIdx[aid]][idToIdx[bid]]) {
         Z3_ast lhs[2], rhs[2];
         lhs[0] = a;
@@ -642,17 +655,18 @@ void eq(void *ctx, Z3_solver_callback cb, Z3_ast s, Z3_ast t) {
 void final_cb(void *ctx, Z3_solver_callback cb) {
   // std::cout << "final" << std::endl;
   UserPropagate *prop = (UserPropagate *)ctx;
-  if (prop->checkFinal(cb, prop->fixedLeqSort, prop->subsorts,
-                       prop->fixedSubsorts, prop->fixedNotSubsorts,
-                       prop->minSortsLeq, prop->maxSortsLeq)) {
-    return;
-  }
   if (prop->checkFinal(cb, prop->fixedLeqSortSyntax, prop->syntacticSubsorts,
                        prop->fixedSyntacticSubsorts,
                        prop->fixedNotSyntacticSubsorts, prop->minSortsLeqSyntax,
                        prop->maxSortsLeqSyntax)) {
     return;
   }
+  if (prop->checkFinal(cb, prop->fixedLeqSort, prop->subsorts,
+                       prop->fixedSubsorts, prop->fixedNotSubsorts,
+                       prop->minSortsLeq, prop->maxSortsLeq)) {
+    return;
+  }
+
   // std::cout << "solution" << std::endl;
   // prop->uf.print();
   if (prop->fresh) {
@@ -856,6 +870,32 @@ void initIds(Z3_context ctx, std::vector<Z3_func_decl> decls, unsigned idx,
   idToIdx[id] = idx + off;
 }
 
+std::map<std::string, std::set<std::string>> rtc(
+    std::vector<std::string> const &sortNames,
+    std::map<std::string, std::set<std::string>> &binaryRelation) {
+  std::map<std::string, std::set<std::string>> step = binaryRelation;
+  std::map<std::string, std::set<std::string>> result;
+  for (std::string sort : sortNames) {
+    result[sort].insert(sort);
+  }
+  bool change = true;
+  while (change) {
+    change = false;
+    for (auto &entry : result) {
+      std::set<std::string> sorts = entry.second;
+      for (auto sort1 : sorts) {
+        for (auto sort2 : step[sort1]) {
+          entry.second.insert(sort2);
+        }
+      }
+      if (entry.second.size() > sorts.size()) {
+        change = true;
+      }
+    }
+  }
+  return result;
+}
+
 int main(int argc, char **argv) {
   if (argc != 6) {
     std::cout << "usage: inference <sorts> <subsorts> <syntactic subsorts> "
@@ -864,12 +904,14 @@ int main(int argc, char **argv) {
   }
 
   Z3_context ctx = Z3_mk_context(Z3_mk_config());
+  global_ctx = ctx;
   Z3_symbol sortSymbol = Z3_mk_string_symbol(ctx, "Sort");
 
   std::ifstream sortsS(argv[1]);
   std::string sortName;
   int nargs;
   std::vector<Z3_func_decl> sorts;
+  std::vector<std::string> sortNames;
   std::vector<Z3_constructor> constructors;
   Z3_ast klabel;
   while (sortsS >> sortName >> nargs) {
@@ -899,6 +941,7 @@ int main(int argc, char **argv) {
       klabel = Z3_mk_app(ctx, decl, 0, nullptr);
     }
     sorts.push_back(decl);
+    sortNames.push_back(name);
   }
 
   std::map<std::string, std::set<std::string>> subsorts;
@@ -922,6 +965,12 @@ int main(int argc, char **argv) {
     std::string gt = parts[1];
     syntacticSubsorts[gt].insert(lt);
   }
+
+  std::map<std::string, std::set<std::string>> rtcSubsorts =
+                                                   rtc(sortNames, subsorts),
+                                               rtcSyntacticSubsorts =
+                                                   rtc(sortNames,
+                                                       syntacticSubsorts);
 
   Z3_sort domain[2];
   domain[0] = sortSort;
@@ -1028,20 +1077,24 @@ int main(int argc, char **argv) {
       args[0] = Z3_mk_app(ctx, s1, 0, nullptr);
       args[1] = Z3_mk_app(ctx, s2, 0, nullptr);
       if (subsorts[name2].count(name1)) {
-        subsortsZ3[i][j] = true;
         Z3_solver_assert(ctx, solver, Z3_mk_app(ctx, leqSort, 2, args));
         //} else {
         //  Z3_solver_assert(ctx, solver,
         //                   Z3_mk_not(ctx, Z3_mk_app(ctx, leqSort, 2,
         //                   args)));
       }
+      if (rtcSubsorts[name2].count(name1)) {
+        subsortsZ3[i][j] = true;
+      }
       if (syntacticSubsorts[name2].count(name1)) {
-        syntacticSubsortsZ3[i][j] = true;
         Z3_solver_assert(ctx, solver, Z3_mk_app(ctx, leqSortSyntax, 2, args));
         //} else {
         //  Z3_solver_assert(
         //      ctx, solver,
         //      Z3_mk_not(ctx, Z3_mk_app(ctx, leqSortSyntax, 2, args)));
+      }
+      if (rtcSyntacticSubsorts[name2].count(name1)) {
+        syntacticSubsortsZ3[i][j] = true;
       }
     }
   }
@@ -1050,10 +1103,10 @@ int main(int argc, char **argv) {
     Z3_func_decl s = sorts[i];
     Z3_symbol symbol = Z3_get_decl_name(ctx, s);
     std::string name = Z3_get_symbol_string(ctx, symbol);
-    if (subsorts[name].size() == 1) {
+    if (rtcSubsorts[name].size() == 1) {
       minSortsLeq[i] = true;
     }
-    if (syntacticSubsorts[name].size() == 1) {
+    if (rtcSyntacticSubsorts[name].size() == 1) {
       minSortsLeqSyntax[i] = true;
     }
   }
@@ -1070,7 +1123,7 @@ int main(int argc, char **argv) {
       Z3_func_decl s2 = sorts[j];
       Z3_symbol symbol2 = Z3_get_decl_name(ctx, s2);
       std::string name2 = Z3_get_symbol_string(ctx, symbol2);
-      if (subsorts[name2].count(name1)) {
+      if (rtcSubsorts[name2].count(name1)) {
         maxLeq = false;
         break;
       }
@@ -1082,7 +1135,7 @@ int main(int argc, char **argv) {
       Z3_func_decl s2 = sorts[j];
       Z3_symbol symbol2 = Z3_get_decl_name(ctx, s2);
       std::string name2 = Z3_get_symbol_string(ctx, symbol2);
-      if (syntacticSubsorts[name2].count(name1)) {
+      if (rtcSyntacticSubsorts[name2].count(name1)) {
         maxLeqSyntax = false;
         break;
       }
